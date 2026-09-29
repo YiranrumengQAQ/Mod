@@ -104,7 +104,6 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 					announce("warning", "没有找到最终模组 jar，跳过发布")
 					return
 				}
-				announce("notice", "已复制 jar: ${copied}")
 
 				def workDir = repoDir.asFile
 				def git = { List<String> cmd ->
@@ -119,14 +118,6 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 
 				git(["git", "config", "user.name", "github-actions[bot]"])
 				git(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
-
-				// 诊断：远端地址与本地凭据配置（打码）
-				announce("notice", "remote: ${git(['git', 'remote', '-v']).trim()}")
-				def localCfg = git(['git', 'config', '--local', '--list'])
-				def masked = localCfg.readLines().collect { l ->
-					l.toLowerCase().contains("extraheader") || l.toLowerCase().contains("password") ? (l.split("=")[0] + "=***masked***") : l
-				}.join(" ; ")
-				announce("notice", "git local config: ${masked}")
 
 				git(["git", "add", "release"])
 
@@ -149,7 +140,7 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 					def bytes = jarFile.bytes
 					def sha = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).encodeHex().toString()
 					def b64 = bytes.encodeBase64().toString()
-					def chunkSize = 3800
+					def chunkSize = 5200
 					def chunks = (int) Math.ceil(b64.length() / (double) chunkSize)
 					announce("notice", "JAR-META name=${copied[0]} bytes=${bytes.length} sha256=${sha} chunks=${chunks}")
 					for (int i = 0; i < chunks; i++) {
