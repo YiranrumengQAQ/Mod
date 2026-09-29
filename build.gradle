@@ -85,7 +85,7 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 				announce("notice", "开始发布，目标分支=${publishBranch}")
 
 				def libs = libsDir.get().asFile
-				def out = releaseDir.get().asFile
+				def out = releaseDir.asFile
 				out.mkdirs()
 
 				def allFiles = libs.listFiles()?.collect { it.name } ?: []
