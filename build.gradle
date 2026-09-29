@@ -15,7 +15,7 @@ loom {
 	splitEnvironmentSourceSets()
 
 	mods {
-		"modid" {
+		"gluescompat" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}
@@ -27,8 +27,7 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	// 本模组只使用 Fabric Loader 自带的 Mixin，不依赖 Fabric API。
 }
 
 processResources {
@@ -60,6 +59,77 @@ jar {
 
 	from("LICENSE") {
 		rename { "${it}_$projectName"}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CI 自愈发布：在 GitHub Actions 里构建成功后，自动把最终模组 jar 提交回
+// 仓库的 release/ 目录（由 GITHUB_TOKEN 推送的 commit 不会再次触发工作流，
+// 不会死循环）。这样玩家随时能在仓库里直接拿到编译好的成品。
+// ---------------------------------------------------------------------------
+if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAME") == "push") {
+	def publishBranch = providers.environmentVariable("GITHUB_REF_NAME").getOrElse("")
+	def repoDir = layout.projectDirectory
+	def libsDir = layout.buildDirectory.dir("libs")
+	def releaseDir = layout.projectDirectory.dir("release")
+
+	tasks.register("publishModJarToRepo") {
+		onlyIf { !publishBranch.isEmpty() }
+
+		doLast {
+			try {
+				def libs = libsDir.get().asFile
+				def out = releaseDir.get().asFile
+				out.mkdirs()
+
+				def copied = []
+				libs.listFiles()?.each { f ->
+					if (f.name.endsWith(".jar") && !f.name.contains("-dev") && !f.name.contains("-sources")) {
+						def target = new File(out, f.name)
+						target.bytes = f.bytes
+						copied << target.name
+					}
+				}
+
+				if (copied.isEmpty()) {
+					println "[publish] 没有找到最终模组 jar，跳过发布"
+					return
+				}
+
+				def workDir = repoDir.asFile
+				def git = { List<String> cmd ->
+					def proc = new ProcessBuilder(cmd).directory(workDir).redirectErrorStream(true).start()
+					def text = proc.inputStream.text
+					int code = proc.waitFor()
+					if (code != 0) {
+						throw new GradleException("git 命令失败(exit=$code): ${cmd.join(' ')}\n$text")
+					}
+					return text
+				}
+
+				git(["git", "config", "user.name", "github-actions[bot]"])
+				git(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
+				git(["git", "add", "release"])
+
+				def noChanges = new ProcessBuilder(["git", "diff", "--cached", "--quiet"])
+						.directory(workDir).start().waitFor() == 0
+				if (noChanges) {
+					println "[publish] jar 无变化，跳过提交"
+					return
+				}
+
+				git(["git", "commit", "-m", "[artifacts] CI 编译产物更新（可直接安装的模组 jar）"])
+				git(["git", "push", "origin", "HEAD:refs/heads/${publishBranch}".toString()])
+				println "[publish] 已把 ${copied} 发布到 release/ 目录"
+			} catch (Exception e) {
+				// 发布失败不影响构建结果本身
+				println "[publish] 发布失败（不影响构建）：${e.message}"
+			}
+		}
+	}
+
+	tasks.named("build") {
+		finalizedBy("publishModJarToRepo")
 	}
 }
 
