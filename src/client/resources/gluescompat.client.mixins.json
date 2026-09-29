@@ -5,7 +5,8 @@
 	"client": [
 		"RenderSystemPipelineMixin",
 		"ShaderManagerApplyMixin",
-		"ShaderManagerSourceMixin"
+		"ShaderManagerSourceMixin",
+		"GameRendererBlurMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
