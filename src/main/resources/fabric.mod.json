@@ -1,38 +1,30 @@
 {
 	"schemaVersion": 1,
-	"id": "modid",
+	"id": "gluescompat",
 	"version": "${version}",
-	"name": "Example Mod",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "GluesCompat",
+	"description": "MobileGlues/FCL 兼容与自愈模组：把 26.3 地形着色器自动降级为 OpenGL ES 转译层可编译的版本，拦截着色器加载失败的强制崩溃，并对缺失管线做应急兜底。把 jar 丢进 mods 文件夹即可，无需任何手动配置。",
 	"authors": [
-		"Me!"
+		"YiranrumengQAQ"
 	],
-	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
-	},
+	"contact": {},
 	"license": "CC0-1.0",
-	"icon": "assets/modid/icon.png",
-	"environment": "*",
+	"icon": "assets/gluescompat/icon.png",
+	"environment": "client",
 	"entrypoints": {
-		"main": [
-			"com.example.ExampleMod"
-		],
 		"client": [
-			"com.example.client.ExampleModClient"
+			"com.example.gluescompat.GluesCompatClient"
 		]
 	},
 	"mixins": [
-		"modid.mixins.json",
 		{
-			"config": "modid.client.mixins.json",
+			"config": "gluescompat.client.mixins.json",
 			"environment": "client"
 		}
 	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "~26.3",
-		"java": ">=25",
-		"fabric-api": "*"
+		"java": ">=25"
 	}
 }

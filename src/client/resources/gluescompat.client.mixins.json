@@ -1,9 +1,11 @@
 {
 	"required": true,
-	"package": "com.example.mixin",
+	"package": "com.example.gluescompat.mixin",
 	"compatibilityLevel": "JAVA_25",
-	"mixins": [
-		"ExampleMixin"
+	"client": [
+		"RenderSystemPipelineMixin",
+		"ShaderManagerApplyMixin",
+		"ShaderManagerSourceMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
