@@ -6,7 +6,8 @@
 		"RenderSystemPipelineMixin",
 		"ShaderManagerApplyMixin",
 		"ShaderManagerSourceMixin",
-		"GameRendererBlurMixin"
+		"GameRendererBlurMixin",
+		"ShaderManagerPostChainMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
