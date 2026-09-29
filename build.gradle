@@ -77,10 +77,19 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 		onlyIf { !publishBranch.isEmpty() }
 
 		doLast {
+			// 用 GitHub Actions 注解作为反馈通道（沙箱拿不到完整日志）
+			def announce = { String level, String msg ->
+				println "::${level}::[publish] ${msg}"
+			}
 			try {
+				announce("notice", "开始发布，目标分支=${publishBranch}")
+
 				def libs = libsDir.get().asFile
 				def out = releaseDir.get().asFile
 				out.mkdirs()
+
+				def allFiles = libs.listFiles()?.collect { it.name } ?: []
+				announce("notice", "build/libs 内容: ${allFiles}")
 
 				def copied = []
 				libs.listFiles()?.each { f ->
@@ -92,9 +101,10 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 				}
 
 				if (copied.isEmpty()) {
-					println "[publish] 没有找到最终模组 jar，跳过发布"
+					announce("warning", "没有找到最终模组 jar，跳过发布")
 					return
 				}
+				announce("notice", "已复制 jar: ${copied}")
 
 				def workDir = repoDir.asFile
 				def git = { List<String> cmd ->
@@ -102,7 +112,7 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 					def text = proc.inputStream.text
 					int code = proc.waitFor()
 					if (code != 0) {
-						throw new GradleException("git 命令失败(exit=$code): ${cmd.join(' ')}\n$text")
+						throw new GradleException("git 命令失败(exit=$code): ${cmd.join(' ')}\n${text}")
 					}
 					return text
 				}
@@ -114,16 +124,16 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 				def noChanges = new ProcessBuilder(["git", "diff", "--cached", "--quiet"])
 						.directory(workDir).start().waitFor() == 0
 				if (noChanges) {
-					println "[publish] jar 无变化，跳过提交"
+					announce("notice", "jar 无变化，跳过提交")
 					return
 				}
 
 				git(["git", "commit", "-m", "[artifacts] CI 编译产物更新（可直接安装的模组 jar）"])
-				git(["git", "push", "origin", "HEAD:refs/heads/${publishBranch}".toString()])
-				println "[publish] 已把 ${copied} 发布到 release/ 目录"
+				def pushOut = git(["git", "push", "origin", "HEAD:refs/heads/${publishBranch}".toString()])
+				announce("notice", "已把 ${copied} 发布到 release/ 目录。push 输出: ${pushOut.take(200)}")
 			} catch (Exception e) {
 				// 发布失败不影响构建结果本身
-				println "[publish] 发布失败（不影响构建）：${e.message}"
+				announce("error", "发布失败（不影响构建结果）：${e.message?.take(500)}")
 			}
 		}
 	}
