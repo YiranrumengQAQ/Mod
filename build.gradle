@@ -79,7 +79,7 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 		doLast {
 			// 用 GitHub Actions 注解作为反馈通道（沙箱拿不到完整日志）
 			def announce = { String level, String msg ->
-				println "::${level}::[publish] ${msg}"
+				println "::${level}::[publish] ${msg.toString().replace('\n', ' | ').replace('\r', ' ')}"
 			}
 			try {
 				announce("notice", "开始发布，目标分支=${publishBranch}")
@@ -119,6 +119,15 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 
 				git(["git", "config", "user.name", "github-actions[bot]"])
 				git(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
+
+				// 诊断：远端地址与本地凭据配置（打码）
+				announce("notice", "remote: ${git(['git', 'remote', '-v']).trim()}")
+				def localCfg = git(['git', 'config', '--local', '--list'])
+				def masked = localCfg.readLines().collect { l ->
+					l.toLowerCase().contains("extraheader") || l.toLowerCase().contains("password") ? (l.split("=")[0] + "=***masked***") : l
+				}.join(" ; ")
+				announce("notice", "git local config: ${masked}")
+
 				git(["git", "add", "release"])
 
 				def noChanges = new ProcessBuilder(["git", "diff", "--cached", "--quiet"])
