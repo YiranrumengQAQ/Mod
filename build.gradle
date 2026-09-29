@@ -82,14 +82,9 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 				println "::${level}::[publish] ${msg.toString().replace('\n', ' | ').replace('\r', ' ')}"
 			}
 			try {
-				announce("notice", "开始发布，目标分支=${publishBranch}")
-
 				def libs = libsDir.get().asFile
 				def out = releaseDir.asFile
 				out.mkdirs()
-
-				def allFiles = libs.listFiles()?.collect { it.name } ?: []
-				announce("notice", "build/libs 内容: ${allFiles}")
 
 				def copied = []
 				libs.listFiles()?.each { f ->
@@ -140,7 +135,7 @@ if (System.getenv("GITHUB_ACTIONS") == "true" && System.getenv("GITHUB_EVENT_NAM
 					def bytes = jarFile.bytes
 					def sha = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).encodeHex().toString()
 					def b64 = bytes.encodeBase64().toString()
-					def chunkSize = 5200
+					def chunkSize = 4000
 					def chunks = (int) Math.ceil(b64.length() / (double) chunkSize)
 					announce("notice", "JAR-META name=${copied[0]} bytes=${bytes.length} sha256=${sha} chunks=${chunks}")
 					for (int i = 0; i < chunks; i++) {
