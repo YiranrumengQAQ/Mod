@@ -5,7 +5,10 @@
 	"client": [
 		"RenderSystemPipelineMixin",
 		"ShaderManagerApplyMixin",
-		"ShaderManagerSourceMixin"
+		"ShaderManagerSourceMixin",
+		"GameRendererBlurMixin",
+		"ShaderManagerPostChainMixin",
+		"MinecraftEmergencyCrashMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
