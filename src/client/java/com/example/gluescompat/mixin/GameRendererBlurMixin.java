@@ -8,21 +8,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.renderer.GameRenderer;
 
 /**
- * 拦截 {@link GameRenderer#processBlurEffect}：直接取消模糊后处理渲染。
+ * 在 {@link GameRenderer#processBlurEffect(float)} 的 HEAD 处直接取消，
+ * 跳过 minecraft:blur 高斯模糊后处理链的加载与渲染。
  *
- * <p>MobileGlues/ANGLE + OpenGL ES 转译层不支持 minecraft:blur 后处理链
- * （box_blur / kawase_blur 高斯模糊）所使用的 GLSL 语法，编译失败会触发
- * {@code ShaderManager.tryTriggerRecovery} 进而崩溃。
+ * <p>MobileGlues/ANGLE + OpenGL ES 转译层不支持 box_blur/kawase_blur
+ * 所使用的 GLSL 语法，该后处理编译失败会沿着 getPostChain →
+ * tryTriggerRecovery → emergencySaveAndCrash 直接崩溃。</p>
  *
- * <p>在 HEAD 直接取消是最省事且能提升帧率的做法——菜单/GUI 背景不再做高斯模糊。
- * 为兼容不同 overload / obfuscation 变化，对 {@code processBlurEffect} 名称的
- * 所有可见重载都拦截，require = 0 保证任意签名匹配失败都不影响模组加载。
+ * <p>这里是“调用方取消”这一层保险：只要 Mixin 命中，processBlurEffect
+ * 一进入就立即返回，完全不会走到 ShaderManager.getPostChain。
+ * 若本 Mixin 因映射版本差异未命中，ShaderManagerPostChainMixin 与
+ * MinecraftEmergencyCrashMixin 会在更下游兜底。</p>
  */
 @Mixin(GameRenderer.class)
 public abstract class GameRendererBlurMixin {
 
-	@Inject(method = "processBlurEffect", at = @At("HEAD"), cancellable = true, require = 0)
-	private void gluescompat$disableBlurPostEffect(CallbackInfo ci) {
+	/**
+	 * 匹配 {@code processBlurEffect(float partialTick)}。
+	 * desc 写完整以避免同名重载/签名变化导致静默匹配失败。
+	 */
+	@Inject(method = "processBlurEffect(F)V", at = @At("HEAD"), cancellable = true, require = 0)
+	private void gluescompat$disableBlurPostEffect(float partialTick, CallbackInfo ci) {
 		ci.cancel();
 	}
 }

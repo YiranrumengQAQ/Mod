@@ -6,35 +6,43 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.example.gluescompat.GluesCompatState;
 
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.ShaderManager;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * 后处理链兜底。
+ * ShaderManager 层拦截。
  *
- * <p>尝试在 {@code ShaderManager.getPostChain(ResourceLocation)} 返回 null（针对
- * 路径含 "blur" 的后处理链），并取消 {@code tryTriggerRecovery()}。
- * 由于 26.3 中这些方法的真实签名可能与我们的 stub 不完全一致（方法可能是 static、
- * 或带有额外参数），这里对同名方法的所有可匹配重载都声明注入，require = 0
- * 保证任意一条未命中都不会导致模组加载失败；最终防崩溃由
- * {@link MinecraftEmergencyCrashMixin} 在最底层兜底。</p>
+ * <p>1) {@code getPostChain(ResourceLocation)}：对 namespace 为 "minecraft" 且
+ *    path 为 "blur" 的后处理链直接返回 {@code null}，阻止 box_blur/kawase_blur
+ *    着色器被加载/编译。</p>
+ * <p>2) {@code tryTriggerRecovery()}：HEAD 取消，防止编译失败后进入资源包
+ *    恢复 → emergencySaveAndCrash 闪退流程。</p>
  */
 @Mixin(ShaderManager.class)
 public abstract class ShaderManagerPostChainMixin {
 
-	@Inject(method = "getPostChain", at = @At("HEAD"), cancellable = true, require = 0)
+	@Inject(
+		method = "getPostChain(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/client/renderer/PostChain;",
+		at = @At("HEAD"),
+		cancellable = true,
+		require = 0
+	)
 	private void gluescompat$skipBlurPostChain(ResourceLocation id, CallbackInfoReturnable<PostChain> cir) {
 		if (id == null) return;
+		String ns = id.getNamespace();
 		String path = id.getPath();
-		if (path != null && path.contains("blur")) {
+		if ("minecraft".equals(ns) && "blur".equals(path)) {
+			GluesCompatState.LOGGER.info("[GluesCompat] 已跳过 minecraft:blur 后处理链（着色器在当前驱动上无法编译）。");
 			cir.setReturnValue(null);
 		}
 	}
 
-	@Inject(method = "tryTriggerRecovery", at = @At("HEAD"), cancellable = true, require = 0)
+	@Inject(method = "tryTriggerRecovery()V", at = @At("HEAD"), cancellable = true, require = 0)
 	private void gluescompat$swallowTryTriggerRecovery(CallbackInfo ci) {
+		GluesCompatState.LOGGER.warn("[GluesCompat] 已拦截 ShaderManager.tryTriggerRecovery()（避免后处理/着色器编译失败触发闪退）。");
 		ci.cancel();
 	}
 }
